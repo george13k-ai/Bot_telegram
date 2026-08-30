@@ -81,7 +81,7 @@ async def on_document_received(message: Message, session: AsyncSession, db_user:
     )
 
     status_line = (
-        f"Файл получен ✅ (заявка №{ticket.id})\nСтатус: {ticket.status_label}\n"
+        f"Файл получен ✅\nСтатус: {ticket.status_label}\n"
         f"Страховка на сумму: {format_amount(amount)}"
     )
     await message.answer(status_line)

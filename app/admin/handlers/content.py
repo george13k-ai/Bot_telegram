@@ -54,18 +54,23 @@ async def on_content_view(callback: CallbackQuery, session: AsyncSession, callba
     header = f"<b>{callback_data.key}</b>\n\n{text or '(пусто)'}"
 
     file_id: str | None = None
+    media_type: str | None = None
     if callback_data.key in CONTENT_FILE_PURPOSE:
         purpose, _ = CONTENT_FILE_PURPOSE[callback_data.key]
         files = FileService(session)
         record = await files.get_content_file(purpose)
         file_id = record.telegram_file_id if record else None
     else:
-        _, file_id = await content.get_media(callback_data.key)
+        media_type, file_id = await content.get_media(callback_data.key)
 
     if file_id and callback_data.key in CONTENT_FILE_PURPOSE and CONTENT_FILE_PURPOSE[callback_data.key][1] == FileType.PHOTO:
         await callback.message.answer_photo(photo=file_id, caption=header, reply_markup=content_detail_keyboard(callback_data.key))
     elif file_id and callback_data.key in CONTENT_FILE_PURPOSE:
         await callback.message.answer_document(document=file_id, caption=header, reply_markup=content_detail_keyboard(callback_data.key))
+    elif file_id and media_type == "video":
+        await callback.message.answer_video(video=file_id, caption=header, reply_markup=content_detail_keyboard(callback_data.key))
+    elif file_id:
+        await callback.message.answer_photo(photo=file_id, caption=header, reply_markup=content_detail_keyboard(callback_data.key))
     else:
         await callback.message.answer(header, reply_markup=content_detail_keyboard(callback_data.key))
     await callback.answer()
@@ -87,7 +92,7 @@ async def on_content_edit_media(callback: CallbackQuery, state: FSMContext, call
         _, file_type = CONTENT_FILE_PURPOSE[callback_data.key]
         prompt = "Отправьте новое фото" if file_type == FileType.PHOTO else "Отправьте новый файл (документ)"
     else:
-        prompt = "Отправьте новое фото"
+        prompt = "Отправьте новое фото или видео"
     await callback.message.answer(f"{prompt} для «{callback_data.key}»:")
     await callback.answer()
 
@@ -126,6 +131,20 @@ async def on_content_new_photo(message: Message, session: AsyncSession, state: F
 
     await state.set_state(None)
     await message.answer(f"Медиа для «{key}» обновлено ✅")
+
+
+@router.message(ContentEdit.waiting_for_media, F.video)
+async def on_content_new_video(message: Message, session: AsyncSession, state: FSMContext) -> None:
+    data = await state.get_data()
+    key = data.get("content_key")
+    if not key or key in CONTENT_FILE_PURPOSE:
+        await state.set_state(None)
+        return
+
+    content = ContentService(session)
+    await content.set_media(key, media_type="video", media_file_id=message.video.file_id, updated_by=message.from_user.id)
+    await state.set_state(None)
+    await message.answer(f"Видео для «{key}» обновлено ✅")
 
 
 @router.message(ContentEdit.waiting_for_media, F.document)

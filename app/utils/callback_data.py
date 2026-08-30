@@ -12,7 +12,7 @@ class SubscriptionCB(CallbackData, prefix="subscription"):
 
 
 class InstructionCB(CallbackData, prefix="instruction"):
-    action: str  # get
+    action: str  # get | video
 
 
 class SpecialistCB(CallbackData, prefix="specialist"):

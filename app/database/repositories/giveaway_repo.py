@@ -45,6 +45,9 @@ class GiveawayRepository:
     async def set_active(self, giveaway: Giveaway, is_active: bool) -> None:
         giveaway.is_active = is_active
 
+    async def set_image(self, giveaway: Giveaway, image_file_id: str) -> None:
+        giveaway.image_file_id = image_file_id
+
     async def is_participant(self, giveaway_id: int, user_id: int) -> bool:
         stmt = select(GiveawayParticipant).where(
             GiveawayParticipant.giveaway_id == giveaway_id, GiveawayParticipant.user_id == user_id

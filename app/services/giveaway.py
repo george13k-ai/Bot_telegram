@@ -33,6 +33,9 @@ class GiveawayService:
     async def set_active(self, giveaway: Giveaway, is_active: bool) -> None:
         await self.repo.set_active(giveaway, is_active)
 
+    async def set_image(self, giveaway: Giveaway, image_file_id: str) -> None:
+        await self.repo.set_image(giveaway, image_file_id)
+
     async def is_participant(self, giveaway_id: int, user_id: int) -> bool:
         return await self.repo.is_participant(giveaway_id, user_id)
 

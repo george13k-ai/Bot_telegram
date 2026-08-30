@@ -76,6 +76,37 @@ async def on_giveaway_toggle(callback: CallbackQuery, session: AsyncSession, cal
     await on_giveaway_view(callback, session, GiveawayAdminCB(action="view", giveaway_id=giveaway.id))
 
 
+@router.callback_query(GiveawayAdminCB.filter(F.action == "set_photo"))
+async def on_giveaway_set_photo_start(
+    callback: CallbackQuery, session: AsyncSession, state: FSMContext, callback_data: GiveawayAdminCB
+) -> None:
+    service = GiveawayService(session)
+    giveaway = await service.get_by_id(callback_data.giveaway_id)
+    if giveaway is None:
+        await callback.answer("Розыгрыш не найден", show_alert=True)
+        return
+    await state.update_data(giveaway_id=giveaway.id)
+    await state.set_state(GiveawayAdminForm.waiting_for_image_edit)
+    await callback.message.answer(f"Отправьте новое фото для розыгрыша «{giveaway.title}»:")
+    await callback.answer()
+
+
+@router.message(GiveawayAdminForm.waiting_for_image_edit, F.photo)
+async def on_giveaway_set_photo(message: Message, session: AsyncSession, state: FSMContext) -> None:
+    data = await state.get_data()
+    giveaway_id = data.get("giveaway_id")
+    await state.set_state(None)
+
+    service = GiveawayService(session)
+    giveaway = await service.get_by_id(giveaway_id) if giveaway_id else None
+    if giveaway is None:
+        await message.answer("Розыгрыш не найден.")
+        return
+
+    await service.set_image(giveaway, message.photo[-1].file_id)
+    await message.answer(f"Фото для «{giveaway.title}» обновлено ✅", reply_markup=giveaway_detail_keyboard(giveaway))
+
+
 @router.callback_query(GiveawayAdminCB.filter(F.action == "create"))
 async def on_giveaway_create_start(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(GiveawayAdminForm.waiting_for_title)

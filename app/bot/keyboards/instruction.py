@@ -13,3 +13,13 @@ def why_keyboard() -> InlineKeyboardMarkup:
     builder.row(specialist_button())
     builder.row(home_button())
     return builder.as_markup()
+
+
+def pdf_instruction_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="🎥 Видео-инструкция", callback_data=InstructionCB(action="video").pack())
+    )
+    builder.row(specialist_button())
+    builder.row(home_button())
+    return builder.as_markup()

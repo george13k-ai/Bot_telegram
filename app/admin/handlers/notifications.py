@@ -12,6 +12,7 @@ from app.database.models.user import User
 from app.database.models.user_event import EventType
 from app.database.repositories.event_repo import EventRepository
 from app.database.repositories.notification_repo import NotificationRepository
+from app.services.content import ContentService
 from app.services.specialist import SpecialistService
 from app.utils.callback_data import AdminMenuCB, NotificationCB
 from app.utils.formatting import format_datetime
@@ -66,8 +67,12 @@ async def on_admin_reply_text(message: Message, session: AsyncSession, state: FS
         await state.set_state(None)
         return
 
+    content = ContentService(session)
+    channel_name = await content.get_channel_name()
+    formatted_reply = f"🙎‍♂️Специалист «{channel_name}»\nНаписал Вам:\n\n{message.text}"
+
     try:
-        await bot.send_message(chat_id=user.telegram_id, text=message.text)
+        await bot.send_message(chat_id=user.telegram_id, text=formatted_reply)
     except (TelegramForbiddenError, TelegramBadRequest) as exc:
         await message.answer(f"Не удалось отправить сообщение пользователю: {exc}")
         await state.set_state(None)
