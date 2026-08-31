@@ -50,7 +50,11 @@ async def on_giveaway_open(callback: CallbackQuery, session: AsyncSession, db_us
 async def on_giveaway_post(callback: CallbackQuery, session: AsyncSession, callback_data: GiveawayCB) -> None:
     content = ContentService(session)
     text = await content.get_text("giveaway_post_message")
-    post_url = await content.get_giveaway_post_url()
+
+    giveaways = GiveawayService(session)
+    giveaway = await giveaways.get_by_id(callback_data.giveaway_id) if callback_data.giveaway_id else None
+    post_url = (giveaway.post_url if giveaway and giveaway.post_url else None) or await content.get_giveaway_post_url()
+
     await callback.message.answer(text, reply_markup=giveaway_post_keyboard(callback_data.giveaway_id, post_url))
     await callback.answer()
 

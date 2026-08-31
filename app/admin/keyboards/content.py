@@ -4,13 +4,16 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.database.models.content import Content
+from app.services.content import content_label
 from app.utils.callback_data import AdminMenuCB, ContentCB
 
 
 def content_list_keyboard(items: list[Content]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for item in items:
-        builder.row(InlineKeyboardButton(text=item.key, callback_data=ContentCB(action="view", key=item.key).pack()))
+        builder.row(
+            InlineKeyboardButton(text=content_label(item.key), callback_data=ContentCB(action="view", key=item.key).pack())
+        )
     builder.row(InlineKeyboardButton(text="⬅️ В меню админки", callback_data=AdminMenuCB(section="home").pack()))
     return builder.as_markup()
 

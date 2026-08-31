@@ -3,7 +3,8 @@ from __future__ import annotations
 from aiogram import F, Router
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.admin.keyboards.menu import back_to_admin_menu_keyboard
@@ -14,7 +15,7 @@ from app.database.repositories.event_repo import EventRepository
 from app.database.repositories.notification_repo import NotificationRepository
 from app.services.content import ContentService
 from app.services.specialist import SpecialistService
-from app.utils.callback_data import AdminMenuCB, NotificationCB
+from app.utils.callback_data import AdminMenuCB, NotificationCB, SpecialistCB
 from app.utils.formatting import format_datetime
 
 router = Router(name="admin_notifications")
@@ -71,8 +72,17 @@ async def on_admin_reply_text(message: Message, session: AsyncSession, state: FS
     channel_name = await content.get_channel_name()
     formatted_reply = f"🙎‍♂️Специалист «{channel_name}»\nНаписал Вам:\n\n{message.text}"
 
+    reply_keyboard = InlineKeyboardBuilder()
+    reply_keyboard.row(
+        InlineKeyboardButton(
+            text="✍️ Написать ответ", callback_data=SpecialistCB(action="reply_ticket", ticket_id=ticket_id).pack()
+        )
+    )
+
     try:
-        await bot.send_message(chat_id=user.telegram_id, text=formatted_reply)
+        await bot.send_message(
+            chat_id=user.telegram_id, text=formatted_reply, reply_markup=reply_keyboard.as_markup()
+        )
     except (TelegramForbiddenError, TelegramBadRequest) as exc:
         await message.answer(f"Не удалось отправить сообщение пользователю: {exc}")
         await state.set_state(None)

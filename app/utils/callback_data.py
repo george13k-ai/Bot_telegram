@@ -16,7 +16,8 @@ class InstructionCB(CallbackData, prefix="instruction"):
 
 
 class SpecialistCB(CallbackData, prefix="specialist"):
-    action: str  # create
+    action: str  # create | reply_ticket
+    ticket_id: int | None = None
 
 
 class GiveawayCB(CallbackData, prefix="giveaway"):
@@ -55,6 +56,6 @@ class ContentCB(CallbackData, prefix="content"):
 
 
 class GiveawayAdminCB(CallbackData, prefix="ga"):
-    action: str  # list | create | toggle | view
+    action: str  # list | create | toggle | view | set_photo | img_skip | set_post_url | post_url_skip | delete | delete_confirm
     giveaway_id: int | None = None
     page: int = 0

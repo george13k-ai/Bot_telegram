@@ -75,6 +75,33 @@ SETTINGS_KEYS = [
     "setting_calculation_keyword",
 ]
 
+# Человекочитаемые названия для списка в админке (Контент/Настройки),
+# чтобы не приходилось разбираться в технических ключах.
+CONTENT_LABELS: dict[str, str] = {
+    "start_message": "👋 Приветствие (/start)",
+    "subscription_message": "📢 Просьба подписаться на канал",
+    "subscribed_message": "✅ Спасибо за подписку",
+    "why_message": "❓ Зачем нужна инструкция",
+    "instruction_message": "📋 Инструкция — вступление",
+    "alpha_bank_instruction": "🏦 Инструкция «Альфа Банк» (текст + фото)",
+    "pdf_instruction": "📄 Инструкция по отправке PDF (текст + файл)",
+    "pdf_video_instruction": "🎥 Видео-инструкция по отправке файла",
+    "specialist_message": "✍️ Приглашение написать специалисту",
+    "giveaway_message": "🎁 Текст розыгрыша",
+    "giveaway_post_message": "🎁 Текст «Отправить пост»",
+    "ticket_pending_amount_message": "❓ Сумма не определена — предложить специалиста",
+    "reminder_user_message": "⏰ Напоминание неактивному пользователю",
+    "setting_channel_url": "🔗 Ссылка на канал",
+    "setting_channel_name": "📛 Название канала",
+    "setting_giveaway_post_url": "🎁 Ссылка на пост розыгрыша (по умолчанию)",
+    "setting_specialist_chat_id": "💬 Доп. чат для уведомлений специалисту",
+    "setting_calculation_keyword": "🔍 Ключевое слово для расчёта переплаты",
+}
+
+
+def content_label(key: str) -> str:
+    return CONTENT_LABELS.get(key, key)
+
 
 class ContentService:
     def __init__(self, session: AsyncSession) -> None:

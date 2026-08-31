@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.admin.keyboards.content import content_detail_keyboard, content_list_keyboard
 from app.admin.states.content_edit import ContentEdit
 from app.database.models.file import FilePurpose, FileType
-from app.services.content import ContentService
+from app.services.content import ContentService, content_label
 from app.services.files import FileService
 from app.utils.callback_data import AdminMenuCB, ContentCB
 
@@ -51,7 +51,7 @@ async def on_content_list(callback: CallbackQuery, session: AsyncSession) -> Non
 async def on_content_view(callback: CallbackQuery, session: AsyncSession, callback_data: ContentCB) -> None:
     content = ContentService(session)
     text = await content.get_text(callback_data.key)
-    header = f"<b>{callback_data.key}</b>\n\n{text or '(пусто)'}"
+    header = f"<b>{content_label(callback_data.key)}</b>\n\n{text or '(пусто)'}"
 
     file_id: str | None = None
     media_type: str | None = None
@@ -80,7 +80,7 @@ async def on_content_view(callback: CallbackQuery, session: AsyncSession, callba
 async def on_content_edit_text(callback: CallbackQuery, state: FSMContext, callback_data: ContentCB) -> None:
     await state.update_data(content_key=callback_data.key)
     await state.set_state(ContentEdit.waiting_for_text)
-    await callback.message.answer(f"Отправьте новый текст для «{callback_data.key}»:")
+    await callback.message.answer(f"Отправьте новый текст для «{content_label(callback_data.key)}»:")
     await callback.answer()
 
 
@@ -93,7 +93,7 @@ async def on_content_edit_media(callback: CallbackQuery, state: FSMContext, call
         prompt = "Отправьте новое фото" if file_type == FileType.PHOTO else "Отправьте новый файл (документ)"
     else:
         prompt = "Отправьте новое фото или видео"
-    await callback.message.answer(f"{prompt} для «{callback_data.key}»:")
+    await callback.message.answer(f"{prompt} для «{content_label(callback_data.key)}»:")
     await callback.answer()
 
 
@@ -107,7 +107,7 @@ async def on_content_new_text(message: Message, session: AsyncSession, state: FS
     content = ContentService(session)
     await content.set_text(key, message.text, updated_by=message.from_user.id)
     await state.set_state(None)
-    await message.answer(f"Текст «{key}» обновлён ✅")
+    await message.answer(f"Текст «{content_label(key)}» обновлён ✅")
 
 
 @router.message(ContentEdit.waiting_for_media, F.photo)
@@ -130,7 +130,7 @@ async def on_content_new_photo(message: Message, session: AsyncSession, state: F
         await content.set_media(key, media_type="photo", media_file_id=photo.file_id, updated_by=message.from_user.id)
 
     await state.set_state(None)
-    await message.answer(f"Медиа для «{key}» обновлено ✅")
+    await message.answer(f"Медиа для «{content_label(key)}» обновлено ✅")
 
 
 @router.message(ContentEdit.waiting_for_media, F.video)
@@ -144,7 +144,7 @@ async def on_content_new_video(message: Message, session: AsyncSession, state: F
     content = ContentService(session)
     await content.set_media(key, media_type="video", media_file_id=message.video.file_id, updated_by=message.from_user.id)
     await state.set_state(None)
-    await message.answer(f"Видео для «{key}» обновлено ✅")
+    await message.answer(f"Видео для «{content_label(key)}» обновлено ✅")
 
 
 @router.message(ContentEdit.waiting_for_media, F.document)
@@ -168,4 +168,4 @@ async def on_content_new_document(message: Message, session: AsyncSession, state
         size=document.file_size,
     )
     await state.set_state(None)
-    await message.answer(f"Файл для «{key}» обновлён ✅")
+    await message.answer(f"Файл для «{content_label(key)}» обновлён ✅")

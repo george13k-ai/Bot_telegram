@@ -30,10 +30,33 @@ async def on_specialist_start(callback: CallbackQuery, session: AsyncSession, st
     await callback.answer()
 
 
+@router.callback_query(SpecialistCB.filter(F.action == "reply_ticket"))
+async def on_specialist_reply_to_ticket(
+    callback: CallbackQuery, state: FSMContext, callback_data: SpecialistCB
+) -> None:
+    await state.update_data(reply_ticket_id=callback_data.ticket_id)
+    await state.set_state(SpecialistForm.waiting_for_message)
+    await callback.message.answer("Напишите ваш ответ:", reply_markup=with_home(InlineKeyboardBuilder()))
+    await callback.answer()
+
+
 @router.message(SpecialistForm.waiting_for_message, F.text)
 async def on_specialist_message(message: Message, session: AsyncSession, db_user: User, state: FSMContext, bot) -> None:
+    data = await state.get_data()
+    reply_ticket_id = data.get("reply_ticket_id")
+
     specialist_service = SpecialistService(session)
-    ticket = await specialist_service.create_specialist_ticket(db_user.id, message.text)
+
+    if reply_ticket_id is not None:
+        ticket = await specialist_service.get_ticket(reply_ticket_id)
+    else:
+        ticket = None
+
+    if ticket is not None:
+        await specialist_service.add_user_message(ticket.id, message.text)
+        await specialist_service.mark_waiting_for_admin(ticket)
+    else:
+        ticket = await specialist_service.create_specialist_ticket(db_user.id, message.text)
 
     events = EventRepository(session)
     await events.log(db_user.id, EventType.SPECIALIST_REQUESTED)
@@ -41,7 +64,8 @@ async def on_specialist_message(message: Message, session: AsyncSession, db_user
 
     notifications = NotificationService(bot, session)
     summary = await notifications.build_user_summary(db_user, ticket, extra_note=f"Сообщение: {message.text}")
-    await notifications.notify_admins(NotificationType.NEW_TICKET, db_user, summary, ticket_id=ticket.id)
+    notification_type = NotificationType.NEW_MESSAGE if reply_ticket_id is not None else NotificationType.NEW_TICKET
+    await notifications.notify_admins(notification_type, db_user, summary, ticket_id=ticket.id)
 
     await message.answer(
         "Ваше сообщение передано специалисту. Мы ответим вам в ближайшее время.",

@@ -11,10 +11,13 @@ class GiveawayRepository:
         self.session = session
 
     async def get_active(self) -> Giveaway | None:
+        # order by id (not just created_at) as a tiebreaker: two giveaways
+        # created within the same timestamp resolution window must still
+        # resolve deterministically to "the most recently created one".
         stmt = (
             select(Giveaway)
             .where(Giveaway.is_active.is_(True))
-            .order_by(Giveaway.created_at.desc())
+            .order_by(Giveaway.created_at.desc(), Giveaway.id.desc())
             .limit(1)
         )
         result = await self.session.execute(stmt)
@@ -24,7 +27,12 @@ class GiveawayRepository:
         return await self.session.get(Giveaway, giveaway_id)
 
     async def list_all(self, limit: int = 20, offset: int = 0) -> list[Giveaway]:
-        stmt = select(Giveaway).order_by(Giveaway.created_at.desc()).limit(limit).offset(offset)
+        stmt = (
+            select(Giveaway)
+            .order_by(Giveaway.created_at.desc(), Giveaway.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -33,10 +41,15 @@ class GiveawayRepository:
         title: str,
         description: str | None,
         image_file_id: str | None = None,
+        post_url: str | None = None,
         is_active: bool = True,
     ) -> Giveaway:
         giveaway = Giveaway(
-            title=title, description=description, image_file_id=image_file_id, is_active=is_active
+            title=title,
+            description=description,
+            image_file_id=image_file_id,
+            post_url=post_url,
+            is_active=is_active,
         )
         self.session.add(giveaway)
         await self.session.flush()
@@ -47,6 +60,13 @@ class GiveawayRepository:
 
     async def set_image(self, giveaway: Giveaway, image_file_id: str) -> None:
         giveaway.image_file_id = image_file_id
+
+    async def set_post_url(self, giveaway: Giveaway, post_url: str | None) -> None:
+        giveaway.post_url = post_url
+
+    async def delete(self, giveaway: Giveaway) -> None:
+        await self.session.delete(giveaway)
+        await self.session.flush()
 
     async def is_participant(self, giveaway_id: int, user_id: int) -> bool:
         stmt = select(GiveawayParticipant).where(

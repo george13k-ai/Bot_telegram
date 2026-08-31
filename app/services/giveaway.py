@@ -27,14 +27,26 @@ class GiveawayService:
     async def list_all(self, limit: int = 20, offset: int = 0) -> list[Giveaway]:
         return await self.repo.list_all(limit, offset)
 
-    async def create(self, title: str, description: str | None, image_file_id: str | None = None) -> Giveaway:
-        return await self.repo.create(title, description, image_file_id)
+    async def create(
+        self,
+        title: str,
+        description: str | None,
+        image_file_id: str | None = None,
+        post_url: str | None = None,
+    ) -> Giveaway:
+        return await self.repo.create(title, description, image_file_id, post_url)
 
     async def set_active(self, giveaway: Giveaway, is_active: bool) -> None:
         await self.repo.set_active(giveaway, is_active)
 
     async def set_image(self, giveaway: Giveaway, image_file_id: str) -> None:
         await self.repo.set_image(giveaway, image_file_id)
+
+    async def set_post_url(self, giveaway: Giveaway, post_url: str | None) -> None:
+        await self.repo.set_post_url(giveaway, post_url)
+
+    async def delete(self, giveaway: Giveaway) -> None:
+        await self.repo.delete(giveaway)
 
     async def is_participant(self, giveaway_id: int, user_id: int) -> bool:
         return await self.repo.is_participant(giveaway_id, user_id)
