@@ -58,6 +58,12 @@ class GiveawayRepository:
     async def set_active(self, giveaway: Giveaway, is_active: bool) -> None:
         giveaway.is_active = is_active
 
+    async def set_title(self, giveaway: Giveaway, title: str) -> None:
+        giveaway.title = title
+
+    async def set_description(self, giveaway: Giveaway, description: str | None) -> None:
+        giveaway.description = description
+
     async def set_image(self, giveaway: Giveaway, image_file_id: str) -> None:
         giveaway.image_file_id = image_file_id
 

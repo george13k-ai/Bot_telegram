@@ -193,6 +193,51 @@ async def on_giveaway_set_post_url(message: Message, session: AsyncSession, stat
     )
 
 
+# --- edit title/description (existing giveaway) ---
+
+
+@router.callback_query(GiveawayAdminCB.filter(F.action == "edit_title"))
+async def on_giveaway_edit_title_start(
+    callback: CallbackQuery, session: AsyncSession, state: FSMContext, callback_data: GiveawayAdminCB
+) -> None:
+    service = GiveawayService(session)
+    giveaway = await service.get_by_id(callback_data.giveaway_id)
+    if giveaway is None:
+        await callback.answer("Розыгрыш не найден", show_alert=True)
+        return
+    await state.update_data(giveaway_id=giveaway.id)
+    await state.set_state(GiveawayAdminForm.waiting_for_title_edit)
+    await callback.message.answer(f"Текущее название: «{giveaway.title}»\nПришлите новое название розыгрыша:")
+    await callback.answer()
+
+
+@router.message(GiveawayAdminForm.waiting_for_title_edit, F.text)
+async def on_giveaway_edit_title(message: Message, state: FSMContext) -> None:
+    await state.update_data(new_title=message.text)
+    await state.set_state(GiveawayAdminForm.waiting_for_description_edit)
+    await message.answer("Теперь пришлите новое описание (условия, призы):")
+
+
+@router.message(GiveawayAdminForm.waiting_for_description_edit, F.text)
+async def on_giveaway_edit_description(message: Message, session: AsyncSession, state: FSMContext) -> None:
+    data = await state.get_data()
+    giveaway_id = data.get("giveaway_id")
+    new_title = data.get("new_title")
+    await state.set_state(None)
+
+    service = GiveawayService(session)
+    giveaway = await service.get_by_id(giveaway_id) if giveaway_id else None
+    if giveaway is None:
+        await message.answer("Розыгрыш не найден.")
+        return
+
+    await service.set_title(giveaway, new_title)
+    await service.set_description(giveaway, message.text)
+    await message.answer(
+        f"Розыгрыш «{giveaway.title}» обновлён ✅", reply_markup=giveaway_detail_keyboard(giveaway)
+    )
+
+
 # --- create ---
 
 

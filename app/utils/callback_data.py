@@ -56,6 +56,8 @@ class ContentCB(CallbackData, prefix="content"):
 
 
 class GiveawayAdminCB(CallbackData, prefix="ga"):
-    action: str  # list | create | toggle | view | set_photo | img_skip | set_post_url | post_url_skip | delete | delete_confirm
+    # list | create | toggle | view | set_photo | img_skip | set_post_url | post_url_skip
+    # | delete | delete_confirm | edit_title
+    action: str
     giveaway_id: int | None = None
     page: int = 0

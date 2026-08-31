@@ -10,3 +10,5 @@ class GiveawayAdminForm(StatesGroup):
     waiting_for_post_url = State()
     waiting_for_image_edit = State()
     waiting_for_post_url_edit = State()
+    waiting_for_title_edit = State()
+    waiting_for_description_edit = State()

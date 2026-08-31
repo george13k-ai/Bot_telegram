@@ -92,6 +92,20 @@ async def test_set_post_url_and_set_image_update_existing_giveaway(session):
     assert reloaded.image_file_id == "FILE_ID_123"
 
 
+async def test_set_title_and_description_update_existing_giveaway(session):
+    giveaways = GiveawayService(session)
+    giveaway = await giveaways.create(title="Old title", description="Old desc")
+    await session.commit()
+
+    await giveaways.set_title(giveaway, "New title")
+    await giveaways.set_description(giveaway, "New desc")
+    await session.commit()
+
+    reloaded = await giveaways.get_by_id(giveaway.id)
+    assert reloaded.title == "New title"
+    assert reloaded.description == "New desc"
+
+
 async def test_delete_giveaway_removes_it_and_its_participants(session):
     giveaways = GiveawayService(session)
     giveaway = await giveaways.create(title="To delete", description="desc")

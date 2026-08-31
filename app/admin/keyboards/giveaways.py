@@ -41,6 +41,12 @@ def giveaway_detail_keyboard(giveaway: Giveaway) -> InlineKeyboardMarkup:
             text=toggle_text, callback_data=GiveawayAdminCB(action="toggle", giveaway_id=giveaway.id).pack()
         )
     )
+    builder.row(
+        InlineKeyboardButton(
+            text="✏️ Изменить название и описание",
+            callback_data=GiveawayAdminCB(action="edit_title", giveaway_id=giveaway.id).pack(),
+        )
+    )
     photo_text = "🖼 Изменить фото" if giveaway.image_file_id else "🖼 Добавить фото"
     builder.row(
         InlineKeyboardButton(

@@ -39,6 +39,12 @@ class GiveawayService:
     async def set_active(self, giveaway: Giveaway, is_active: bool) -> None:
         await self.repo.set_active(giveaway, is_active)
 
+    async def set_title(self, giveaway: Giveaway, title: str) -> None:
+        await self.repo.set_title(giveaway, title)
+
+    async def set_description(self, giveaway: Giveaway, description: str | None) -> None:
+        await self.repo.set_description(giveaway, description)
+
     async def set_image(self, giveaway: Giveaway, image_file_id: str) -> None:
         await self.repo.set_image(giveaway, image_file_id)
 
