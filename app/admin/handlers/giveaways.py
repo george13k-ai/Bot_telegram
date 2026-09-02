@@ -40,12 +40,13 @@ async def _render_list(target: Message, session: AsyncSession, page: int) -> Non
 
 
 def _detail_text(giveaway, participants: int) -> str:
+    post_url_line = giveaway.post_url or "⚠️ не задана — нажмите «Добавить ссылку на пост» ниже"
     return (
         f"<b>{giveaway.title}</b>\n\n"
         f"{giveaway.description or ''}\n\n"
         f"Активен: {'да' if giveaway.is_active else 'нет'}\n"
         f"Фото: {'есть' if giveaway.image_file_id else 'нет'}\n"
-        f"Ссылка на пост: {giveaway.post_url or '—'}\n"
+        f"Ссылка на пост: {post_url_line}\n"
         f"Создан: {format_datetime(giveaway.created_at)}\n"
         f"Участников: {participants}"
     )
@@ -53,7 +54,20 @@ def _detail_text(giveaway, participants: int) -> str:
 
 @router.callback_query(AdminMenuCB.filter(F.section == "giveaways"))
 async def on_giveaways_section(callback: CallbackQuery, session: AsyncSession) -> None:
-    await _render_list(callback.message, session, page=0)
+    # Открываем сразу ТЕКУЩИЙ активный розыгрыш (тот, что реально видят
+    # пользователи), а не список — чтобы не путаться, какой из них "настоящий".
+    # Полный список (например, чтобы удалить старые) доступен по кнопке
+    # "⬅️ К списку" внутри карточки.
+    service = GiveawayService(session)
+    giveaway = await service.get_active()
+    if giveaway is None:
+        await _render_list(callback.message, session, page=0)
+        await callback.answer()
+        return
+
+    participants = await service.count_participants(giveaway.id)
+    text = f"<b>Текущий розыгрыш (его видят пользователи)</b>\n\n{_detail_text(giveaway, participants)}"
+    await callback.message.answer(text, reply_markup=giveaway_detail_keyboard(giveaway))
     await callback.answer()
 
 
