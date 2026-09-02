@@ -5,7 +5,8 @@ from aiogram.filters import or_f
 from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bot.keyboards.giveaway import giveaway_intro_keyboard, giveaway_post_keyboard, giveaway_result_keyboard
+from app.bot.keyboards.giveaway import giveaway_intro_keyboard, giveaway_result_keyboard
+from app.database.models.giveaway import Giveaway
 from app.database.models.user import User
 from app.database.models.user_event import EventType
 from app.database.repositories.event_repo import EventRepository
@@ -17,7 +18,7 @@ from app.utils.callback_data import GiveawayCB, MainCB
 router = Router(name="giveaway")
 
 
-async def _ensure_active_giveaway(session: AsyncSession, content: ContentService):
+async def _ensure_active_giveaway(session: AsyncSession, content: ContentService) -> Giveaway:
     giveaways = GiveawayService(session)
     giveaway = await giveaways.get_active()
     if giveaway is None:
@@ -36,26 +37,14 @@ async def on_giveaway_open(callback: CallbackQuery, session: AsyncSession, db_us
 
     text = await content.get_text("giveaway_message")
     channel_url = await content.get_channel_url()
-    keyboard = giveaway_intro_keyboard(giveaway.id, channel_url)
+    post_url = giveaway.post_url or await content.get_giveaway_post_url()
+    keyboard = giveaway_intro_keyboard(giveaway.id, channel_url, post_url)
 
     if giveaway.image_file_id:
         await callback.message.answer_photo(photo=giveaway.image_file_id, caption=text, reply_markup=keyboard)
     else:
         await callback.message.answer(text, reply_markup=keyboard)
 
-    await callback.answer()
-
-
-@router.callback_query(GiveawayCB.filter(F.action == "post"))
-async def on_giveaway_post(callback: CallbackQuery, session: AsyncSession, callback_data: GiveawayCB) -> None:
-    content = ContentService(session)
-    text = await content.get_text("giveaway_post_message")
-
-    giveaways = GiveawayService(session)
-    giveaway = await giveaways.get_by_id(callback_data.giveaway_id) if callback_data.giveaway_id else None
-    post_url = (giveaway.post_url if giveaway and giveaway.post_url else None) or await content.get_giveaway_post_url()
-
-    await callback.message.answer(text, reply_markup=giveaway_post_keyboard(callback_data.giveaway_id, post_url))
     await callback.answer()
 
 

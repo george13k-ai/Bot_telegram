@@ -21,7 +21,7 @@ class SpecialistCB(CallbackData, prefix="specialist"):
 
 
 class GiveawayCB(CallbackData, prefix="giveaway"):
-    action: str  # open | post | join | back
+    action: str  # open | join
     giveaway_id: int | None = None
 
 
