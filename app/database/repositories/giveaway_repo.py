@@ -26,6 +26,11 @@ class GiveawayRepository:
     async def get_by_id(self, giveaway_id: int) -> Giveaway | None:
         return await self.session.get(Giveaway, giveaway_id)
 
+    async def list_active_with_post_url(self) -> list[Giveaway]:
+        stmt = select(Giveaway).where(Giveaway.is_active.is_(True), Giveaway.post_url.is_not(None))
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def list_all(self, limit: int = 20, offset: int = 0) -> list[Giveaway]:
         stmt = (
             select(Giveaway)

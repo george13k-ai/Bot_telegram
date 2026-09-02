@@ -10,11 +10,16 @@ from app.bot.keyboards.main import start_menu_keyboard
 from app.database.models.notification import NotificationType
 from app.database.models.user import User
 from app.services.content import ContentService
+from app.services.giveaway import GiveawayService
 from app.services.notifications import NotificationService
 from app.services.users import UsersService
 from app.utils.callback_data import MainCB
 
 router = Router(name="start")
+
+
+async def _has_active_giveaway(session: AsyncSession) -> bool:
+    return await GiveawayService(session).get_active() is not None
 
 
 @router.message(CommandStart())
@@ -38,7 +43,7 @@ async def cmd_start(
 
     content = ContentService(session)
     text = await content.get_text("start_message")
-    await message.answer(text, reply_markup=start_menu_keyboard())
+    await message.answer(text, reply_markup=start_menu_keyboard(show_giveaway=await _has_active_giveaway(session)))
 
 
 @router.callback_query(MainCB.filter(F.action == "home"))
@@ -46,5 +51,7 @@ async def on_home(callback: CallbackQuery, session: AsyncSession, state: FSMCont
     await state.clear()
     content = ContentService(session)
     text = await content.get_text("start_message")
-    await callback.message.answer(text, reply_markup=start_menu_keyboard())
+    await callback.message.answer(
+        text, reply_markup=start_menu_keyboard(show_giveaway=await _has_active_giveaway(session))
+    )
     await callback.answer()

@@ -6,10 +6,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from app.utils.callback_data import MainCB
 
 
-def start_menu_keyboard() -> InlineKeyboardMarkup:
+def start_menu_keyboard(show_giveaway: bool = True) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="Да", callback_data=MainCB(action="yes").pack()))
-    builder.row(InlineKeyboardButton(text="Розыгрыш", callback_data=MainCB(action="giveaway").pack()))
+    if show_giveaway:
+        builder.row(InlineKeyboardButton(text="Розыгрыш", callback_data=MainCB(action="giveaway").pack()))
     builder.row(
         InlineKeyboardButton(text="Написать специалисту", callback_data=MainCB(action="specialist").pack())
     )

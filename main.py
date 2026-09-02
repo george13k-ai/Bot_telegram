@@ -60,9 +60,10 @@ async def start_health_check_server():
 
 
 def register_middlewares(dp: Dispatcher) -> None:
-    for observer in (dp.message, dp.callback_query):
+    for observer in (dp.message, dp.callback_query, dp.message_reaction):
         observer.outer_middleware(DbSessionMiddleware())
         observer.outer_middleware(UserActivityMiddleware())
+    for observer in (dp.message, dp.callback_query):
         observer.middleware(ThrottlingMiddleware())
 
 

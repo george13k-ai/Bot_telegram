@@ -120,3 +120,20 @@ async def test_delete_giveaway_removes_it_and_its_participants(session):
     await session.commit()
 
     assert await giveaways.get_by_id(giveaway.id) is None
+
+
+async def test_list_active_with_post_url_filters_correctly(session):
+    giveaways = GiveawayService(session)
+
+    with_link_active = await giveaways.create(title="A", description="d", post_url="https://t.me/ch/1")
+    await giveaways.create(title="B", description="d")  # active, no link
+    inactive_with_link = await giveaways.create(title="C", description="d", post_url="https://t.me/ch/2")
+    await giveaways.set_active(inactive_with_link, False)
+    await session.commit()
+
+    results = await giveaways.list_active_with_post_url()
+    result_ids = {g.id for g in results}
+
+    assert with_link_active.id in result_ids
+    assert inactive_with_link.id not in result_ids
+    assert len(result_ids) == 1

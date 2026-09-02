@@ -24,6 +24,9 @@ class GiveawayService:
     async def get_by_id(self, giveaway_id: int) -> Giveaway | None:
         return await self.repo.get_by_id(giveaway_id)
 
+    async def list_active_with_post_url(self) -> list[Giveaway]:
+        return await self.repo.list_active_with_post_url()
+
     async def list_all(self, limit: int = 20, offset: int = 0) -> list[Giveaway]:
         return await self.repo.list_all(limit, offset)
 
