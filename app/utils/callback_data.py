@@ -20,11 +20,6 @@ class SpecialistCB(CallbackData, prefix="specialist"):
     ticket_id: int | None = None
 
 
-class GiveawayCB(CallbackData, prefix="giveaway"):
-    action: str  # open | join
-    giveaway_id: int | None = None
-
-
 class AdminMenuCB(CallbackData, prefix="admin"):
     section: str  # users | mailings | giveaways | subscriptions | notifications | statistics | content | settings | home
 
