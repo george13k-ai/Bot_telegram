@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -52,12 +53,22 @@ async def on_instruction_get(callback: CallbackQuery, session: AsyncSession, db_
 async def on_instruction_video(callback: CallbackQuery, session: AsyncSession) -> None:
     content = ContentService(session)
     media_type, media_file_id = await content.get_media("pdf_video_instruction")
+    caption = await content.get_text("pdf_video_instruction")
 
-    if media_file_id and media_type == "video":
-        caption = await content.get_text("pdf_video_instruction")
-        await callback.message.answer_video(
-            video=media_file_id, caption=caption, reply_markup=specialist_only_keyboard()
-        )
+    if media_file_id and media_type == "video_note":
+        await callback.message.answer_video_note(video_note=media_file_id)
+        await callback.message.answer(caption, reply_markup=specialist_only_keyboard())
+    elif media_file_id and media_type == "video":
+        try:
+            await callback.message.answer_video(
+                video=media_file_id, caption=caption, reply_markup=specialist_only_keyboard()
+            )
+        except TelegramBadRequest:
+            # Формат/кодек не проигрывается как видео в Telegram - отдаём файлом,
+            # чтобы пользователь всё равно мог его скачать и посмотреть.
+            await callback.message.answer_document(
+                document=media_file_id, caption=caption, reply_markup=specialist_only_keyboard()
+            )
     else:
         await callback.message.answer(
             "Видео-инструкция пока не загружена. Напишите специалисту — он поможет разобраться.",

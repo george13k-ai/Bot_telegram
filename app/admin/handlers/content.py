@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,16 +64,25 @@ async def on_content_view(callback: CallbackQuery, session: AsyncSession, callba
     else:
         media_type, file_id = await content.get_media(callback_data.key)
 
+    keyboard = content_detail_keyboard(callback_data.key)
     if file_id and callback_data.key in CONTENT_FILE_PURPOSE and CONTENT_FILE_PURPOSE[callback_data.key][1] == FileType.PHOTO:
-        await callback.message.answer_photo(photo=file_id, caption=header, reply_markup=content_detail_keyboard(callback_data.key))
+        await callback.message.answer_photo(photo=file_id, caption=header, reply_markup=keyboard)
     elif file_id and callback_data.key in CONTENT_FILE_PURPOSE:
-        await callback.message.answer_document(document=file_id, caption=header, reply_markup=content_detail_keyboard(callback_data.key))
+        await callback.message.answer_document(document=file_id, caption=header, reply_markup=keyboard)
+    elif file_id and media_type == "video_note":
+        await callback.message.answer_video_note(video_note=file_id)
+        await callback.message.answer(header, reply_markup=keyboard)
     elif file_id and media_type == "video":
-        await callback.message.answer_video(video=file_id, caption=header, reply_markup=content_detail_keyboard(callback_data.key))
+        try:
+            await callback.message.answer_video(video=file_id, caption=header, reply_markup=keyboard)
+        except TelegramBadRequest:
+            # Некоторые форматы/кодеки Telegram не может проиграть как видео -
+            # но файл сохранён, отдаём его как обычный документ.
+            await callback.message.answer_document(document=file_id, caption=header, reply_markup=keyboard)
     elif file_id:
-        await callback.message.answer_photo(photo=file_id, caption=header, reply_markup=content_detail_keyboard(callback_data.key))
+        await callback.message.answer_photo(photo=file_id, caption=header, reply_markup=keyboard)
     else:
-        await callback.message.answer(header, reply_markup=content_detail_keyboard(callback_data.key))
+        await callback.message.answer(header, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -92,7 +102,7 @@ async def on_content_edit_media(callback: CallbackQuery, state: FSMContext, call
         _, file_type = CONTENT_FILE_PURPOSE[callback_data.key]
         prompt = "Отправьте новое фото" if file_type == FileType.PHOTO else "Отправьте новый файл (документ)"
     else:
-        prompt = "Отправьте новое фото или видео"
+        prompt = "Отправьте новое фото или видео (любым способом - как видео, кружком или файлом)"
     await callback.message.answer(f"{prompt} для «{content_label(callback_data.key)}»:")
     await callback.answer()
 
@@ -147,25 +157,59 @@ async def on_content_new_video(message: Message, session: AsyncSession, state: F
     await message.answer(f"Видео для «{content_label(key)}» обновлено ✅")
 
 
+@router.message(ContentEdit.waiting_for_media, F.video_note)
+async def on_content_new_video_note(message: Message, session: AsyncSession, state: FSMContext) -> None:
+    data = await state.get_data()
+    key = data.get("content_key")
+    if not key or key in CONTENT_FILE_PURPOSE:
+        await state.set_state(None)
+        return
+
+    content = ContentService(session)
+    await content.set_media(
+        key, media_type="video_note", media_file_id=message.video_note.file_id, updated_by=message.from_user.id
+    )
+    await state.set_state(None)
+    await message.answer(f"Видео (кружок) для «{content_label(key)}» обновлено ✅")
+
+
 @router.message(ContentEdit.waiting_for_media, F.document)
 async def on_content_new_document(message: Message, session: AsyncSession, state: FSMContext) -> None:
     data = await state.get_data()
     key = data.get("content_key")
-    if not key or key not in CONTENT_FILE_PURPOSE:
+    if not key:
         await state.set_state(None)
         return
 
-    purpose, _ = CONTENT_FILE_PURPOSE[key]
     document = message.document
-    files = FileService(session)
-    await files.set_content_file(
-        purpose,
-        document.file_id,
-        FileType.DOCUMENT,
-        uploaded_by=message.from_user.id,
-        file_name=document.file_name,
-        mime_type=document.mime_type,
-        size=document.file_size,
-    )
+
+    if key in CONTENT_FILE_PURPOSE:
+        purpose, _ = CONTENT_FILE_PURPOSE[key]
+        files = FileService(session)
+        await files.set_content_file(
+            purpose,
+            document.file_id,
+            FileType.DOCUMENT,
+            uploaded_by=message.from_user.id,
+            file_name=document.file_name,
+            mime_type=document.mime_type,
+            size=document.file_size,
+        )
+        await state.set_state(None)
+        await message.answer(f"Файл для «{content_label(key)}» обновлён ✅")
+        return
+
+    # Некоторые видео (необычные кодеки/контейнеры, отправка "файлом") Telegram
+    # доставляет как документ, а не как message.video - принимаем и такие,
+    # чтобы видео-инструкцию можно было загрузить в любом формате.
+    if document.mime_type and document.mime_type.startswith("video/"):
+        content = ContentService(session)
+        await content.set_media(
+            key, media_type="video", media_file_id=document.file_id, updated_by=message.from_user.id
+        )
+        await state.set_state(None)
+        await message.answer(f"Видео для «{content_label(key)}» обновлено ✅")
+        return
+
     await state.set_state(None)
-    await message.answer(f"Файл для «{content_label(key)}» обновлён ✅")
+    await message.answer("Для этого раздела нужно фото или видео. Пришлите файл ещё раз в подходящем формате.")
