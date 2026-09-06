@@ -4,7 +4,13 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.database.models.giveaway import Giveaway
-from app.utils.callback_data import AdminMenuCB, GiveawayAdminCB
+from app.utils.callback_data import AdminMenuCB, ContentCB, GiveawayAdminCB
+
+
+def _channel_link_button() -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        text="🔗 Изменить ссылку на канал", callback_data=ContentCB(action="view", key="setting_channel_url").pack()
+    )
 
 
 def giveaways_list_keyboard(giveaways: list[Giveaway], page: int, has_next: bool) -> InlineKeyboardMarkup:
@@ -29,6 +35,7 @@ def giveaways_list_keyboard(giveaways: list[Giveaway], page: int, has_next: bool
     if nav_row:
         builder.row(*nav_row)
     builder.row(InlineKeyboardButton(text="➕ Добавить розыгрыш", callback_data=GiveawayAdminCB(action="create").pack()))
+    builder.row(_channel_link_button())
     builder.row(InlineKeyboardButton(text="⬅️ В меню админки", callback_data=AdminMenuCB(section="home").pack()))
     return builder.as_markup()
 
@@ -64,6 +71,7 @@ def giveaway_detail_keyboard(giveaway: Giveaway) -> InlineKeyboardMarkup:
             text="🗑 Удалить розыгрыш", callback_data=GiveawayAdminCB(action="delete", giveaway_id=giveaway.id).pack()
         )
     )
+    builder.row(_channel_link_button())
     builder.row(InlineKeyboardButton(text="⬅️ К списку", callback_data=GiveawayAdminCB(action="list").pack()))
     return builder.as_markup()
 

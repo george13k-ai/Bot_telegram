@@ -67,6 +67,9 @@ class UserRepository:
     async def set_subscribed(self, user: User, is_subscribed: bool) -> None:
         user.is_subscribed = is_subscribed
 
+    async def set_channel_join_requested(self, user: User) -> None:
+        user.channel_join_requested_at = datetime.now(timezone.utc)
+
     async def search(self, query: str, limit: int = 10, offset: int = 0) -> list[User]:
         like = f"%{query}%"
         stmt = (

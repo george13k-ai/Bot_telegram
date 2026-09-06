@@ -94,6 +94,26 @@ async def on_content_edit_text(callback: CallbackQuery, state: FSMContext, callb
     await callback.answer()
 
 
+@router.callback_query(ContentCB.filter(F.action == "toggle_bool"))
+async def on_content_toggle_bool(callback: CallbackQuery, session: AsyncSession, callback_data: ContentCB) -> None:
+    content = ContentService(session)
+    if callback_data.key == "setting_require_join_approval":
+        new_value = not await content.get_require_join_approval()
+        await content.set_require_join_approval(new_value, updated_by=callback.from_user.id)
+        state_text = "включено ✅" if new_value else "выключено ❌"
+        await callback.message.answer(
+            f"«{content_label(callback_data.key)}»: {state_text}\n\n"
+            + (
+                "Теперь заявка на вступление в канал засчитывается как подписка "
+                "(одобрять можно позже вручную)."
+                if new_value
+                else "Теперь для участия нужно фактическое членство в канале."
+            ),
+            reply_markup=content_detail_keyboard(callback_data.key),
+        )
+    await callback.answer()
+
+
 @router.callback_query(ContentCB.filter(F.action == "edit_media"))
 async def on_content_edit_media(callback: CallbackQuery, state: FSMContext, callback_data: ContentCB) -> None:
     await state.update_data(content_key=callback_data.key)
@@ -115,8 +135,23 @@ async def on_content_new_text(message: Message, session: AsyncSession, state: FS
         await state.set_state(None)
         return
     content = ContentService(session)
-    await content.set_text(key, message.text, updated_by=message.from_user.id)
     await state.set_state(None)
+
+    if key == "setting_channel_url":
+        username = await content.set_channel_url(message.text.strip(), updated_by=message.from_user.id)
+        if username:
+            await message.answer(
+                f"Ссылка на канал обновлена ✅\nПроверка подписки теперь тоже идёт по каналу @{username}."
+            )
+        else:
+            await message.answer(
+                "Ссылка на канал обновлена ✅\n\n"
+                "Похоже, это приватная ссылка - чтобы проверка подписки тоже заработала на новом канале, "
+                "укажите его числовой ID в «🆔 ID канала для проверки подписки» (Настройки)."
+            )
+        return
+
+    await content.set_text(key, message.text, updated_by=message.from_user.id)
     await message.answer(f"Текст «{content_label(key)}» обновлён ✅")
 
 

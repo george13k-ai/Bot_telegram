@@ -7,6 +7,9 @@ from dataclasses import dataclass
 _PUBLIC_RE = re.compile(r"^https?://t\.me/([A-Za-z0-9_]{5,})/(\d+)/?(?:\?.*)?$")
 # Приватный канал: https://t.me/c/<internal_id>/<message_id>
 _PRIVATE_RE = re.compile(r"^https?://t\.me/c/(\d+)/(\d+)/?(?:\?.*)?$")
+# Голая ссылка на публичный канал (без поста): https://t.me/<username>
+_CHANNEL_RE = re.compile(r"^https?://t\.me/([A-Za-z0-9_]{5,})/?(?:\?.*)?$")
+_RESERVED_PATHS = {"c", "joinchat", "share"}
 
 
 @dataclass(frozen=True)
@@ -37,3 +40,21 @@ def parse_post_url(url: str | None) -> TelegramPost | None:
         return TelegramPost(message_id=int(message_id), chat_id=int(f"-100{internal_id}"))
 
     return None
+
+
+def parse_channel_username(url: str | None) -> str | None:
+    """
+    Достаёт username из ссылки на публичный канал (https://t.me/username).
+    Для приватных ссылок (t.me/+..., t.me/joinchat/..., t.me/c/...) возвращает
+    None - у них нет username, только числовой ID канала, который бот узнать
+    из одной лишь ссылки не может.
+    """
+    if not url:
+        return None
+    match = _CHANNEL_RE.match(url.strip())
+    if not match:
+        return None
+    username = match.group(1)
+    if username.lower() in _RESERVED_PATHS:
+        return None
+    return username

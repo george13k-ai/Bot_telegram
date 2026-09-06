@@ -46,7 +46,7 @@ class NotificationCB(CallbackData, prefix="notif"):
 
 
 class ContentCB(CallbackData, prefix="content"):
-    action: str  # list | view | edit_text | edit_media
+    action: str  # list | view | edit_text | edit_media | toggle_bool
     key: str = ""
 
 

@@ -60,20 +60,30 @@ DEFAULT_CONTENT: dict[str, str] = {
         "Не получилось получить файл от банка? Я могу помочь — просто напиши специалисту, "
         "и мы разберёмся вместе."
     ),
+    "unsubscribe_reminder_message": (
+        "Вы отписались от канала «{channel_name}» — а без подписки участвовать в розыгрыше "
+        "и получать инсайды не получится. Подпишитесь снова, чтобы не пропустить!"
+    ),
     # Runtime-editable settings (bootstrap defaults come from .env, then live in DB).
     "setting_channel_url": settings.REQUIRED_CHANNEL_URL,
     "setting_channel_name": settings.REQUIRED_CHANNEL_NAME,
+    "setting_channel_id": str(settings.REQUIRED_CHANNEL_ID),
     "setting_giveaway_post_url": settings.GIVEAWAY_POST_URL,
     "setting_specialist_chat_id": settings.SPECIALIST_CHAT_ID,
     "setting_calculation_keyword": settings.CALCULATION_KEYWORD,
+    "setting_require_join_approval": "false",
+    "setting_unsubscribe_reminder_minutes": "30",
 }
 
 SETTINGS_KEYS = [
     "setting_channel_url",
     "setting_channel_name",
+    "setting_channel_id",
     "setting_giveaway_post_url",
     "setting_specialist_chat_id",
     "setting_calculation_keyword",
+    "setting_require_join_approval",
+    "setting_unsubscribe_reminder_minutes",
 ]
 
 # Человекочитаемые названия для списка в админке (Контент/Настройки),
@@ -91,11 +101,15 @@ CONTENT_LABELS: dict[str, str] = {
     "giveaway_message": "🎁 Текст розыгрыша",
     "ticket_pending_amount_message": "❓ Сумма не определена — предложить специалиста",
     "reminder_user_message": "⏰ Напоминание неактивному пользователю",
+    "unsubscribe_reminder_message": "📉 Напоминание после отписки от канала",
     "setting_channel_url": "🔗 Ссылка на канал",
     "setting_channel_name": "📛 Название канала",
+    "setting_channel_id": "🆔 ID канала для проверки подписки",
     "setting_giveaway_post_url": "🎁 Ссылка на пост розыгрыша (по умолчанию)",
     "setting_specialist_chat_id": "💬 Доп. чат для уведомлений специалисту",
     "setting_calculation_keyword": "🔍 Ключевое слово для расчёта переплаты",
+    "setting_require_join_approval": "✅ Канал требует одобрения вступления",
+    "setting_unsubscribe_reminder_minutes": "⏱ Напоминание после отписки, мин.",
 }
 
 
@@ -150,6 +164,55 @@ class ContentService:
 
     async def get_channel_name(self) -> str:
         return await self.get_text("setting_channel_name")
+
+    async def get_channel_id(self) -> int | str:
+        """
+        Chat ID для проверки подписки (getChatMember). Для публичных каналов
+        это обычно "@username", для остальных - числовой ID. Meняется вместе
+        со ссылкой на канал через set_channel_url() при возможности.
+        """
+        value = (await self.get_text("setting_channel_id")).strip()
+        if not value:
+            return settings.REQUIRED_CHANNEL_ID
+        if value.startswith("@"):
+            return value
+        try:
+            return int(value)
+        except ValueError:
+            return settings.REQUIRED_CHANNEL_ID
+
+    async def set_channel_id(self, value: int | str, updated_by: int) -> None:
+        await self.set_text("setting_channel_id", str(value), updated_by=updated_by)
+
+    async def set_channel_url(self, url: str, updated_by: int) -> str | None:
+        """
+        Обновляет ссылку на канал. Если это обычная публичная ссылка вида
+        t.me/username - заодно переключает ID канала для проверки подписки
+        на этот же канал (возвращает username при таком авто-переключении).
+        Для приватных ссылок ID канала нужно обновить отдельно вручную.
+        """
+        from app.utils.telegram_links import parse_channel_username
+
+        await self.set_text("setting_channel_url", url, updated_by=updated_by)
+        username = parse_channel_username(url)
+        if username:
+            await self.set_channel_id(f"@{username}", updated_by=updated_by)
+        return username
+
+    async def get_require_join_approval(self) -> bool:
+        value = (await self.get_text("setting_require_join_approval")).strip().lower()
+        return value in {"true", "1", "да", "yes"}
+
+    async def set_require_join_approval(self, value: bool, updated_by: int) -> None:
+        await self.set_text("setting_require_join_approval", "true" if value else "false", updated_by=updated_by)
+
+    async def get_unsubscribe_reminder_minutes(self) -> int:
+        value = (await self.get_text("setting_unsubscribe_reminder_minutes")).strip()
+        try:
+            minutes = int(value)
+            return minutes if minutes > 0 else 30
+        except ValueError:
+            return 30
 
     async def get_giveaway_post_url(self) -> str:
         return await self.get_text("setting_giveaway_post_url")

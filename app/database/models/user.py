@@ -37,6 +37,12 @@ class User(TimestampMixin, Base):
     reminder_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_reminder_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Заполняется, когда пользователь отправляет заявку на вступление в
+    # приватный канал (chat_join_request) - для каналов с обязательным
+    # одобрением админом это трактуется как "подписка выполнена" без
+    # ожидания фактического одобрения (см. SubscriptionService).
+    channel_join_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     tags: Mapped[list["UserTag"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     tickets: Mapped[list["SupportTicket"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     files: Mapped[list["UserFile"]] = relationship(back_populates="user", cascade="all, delete-orphan")

@@ -29,7 +29,7 @@ async def on_main_yes(callback: CallbackQuery, session: AsyncSession) -> None:
 @router.callback_query(SubscriptionCB.filter(F.action == "check"))
 async def on_subscription_check(callback: CallbackQuery, session: AsyncSession, db_user: User, bot) -> None:
     events = EventRepository(session)
-    subscription_service = SubscriptionService(bot)
+    subscription_service = SubscriptionService(bot, session)
     is_subscribed = await subscription_service.is_subscribed(db_user.telegram_id)
 
     await events.log(db_user.id, EventType.SUBSCRIPTION_CHECK, {"result": is_subscribed})

@@ -48,6 +48,9 @@ class UsersService:
     async def set_subscribed(self, user: User, is_subscribed: bool) -> None:
         await self.repo.set_subscribed(user, is_subscribed)
 
+    async def set_channel_join_requested(self, user: User) -> None:
+        await self.repo.set_channel_join_requested(user)
+
     async def get_with_details(self, user_id: int) -> User | None:
         return await self.repo.get_with_details(user_id)
 

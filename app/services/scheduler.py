@@ -80,6 +80,45 @@ async def user_reminder_job() -> None:
         await session.commit()
 
 
+async def send_unsubscribe_reminder_job(user_id: int) -> None:
+    """Напоминание тому, кто отписался от обязательного канала (ТЗ: настраиваемая задержка в минутах)."""
+    if _bot is None:
+        return
+    async with get_session() as session:
+        user = await session.get(User, user_id)
+        if user is None or user.is_subscribed:
+            return  # уже подписался заново - не беспокоим повторно
+
+        content_service = ContentService(session)
+        channel_name = await content_service.get_channel_name()
+        channel_url = await content_service.get_channel_url()
+        text = await content_service.get_text("unsubscribe_reminder_message", channel_name=channel_name)
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[[InlineKeyboardButton(text="Подписаться на канал", url=channel_url)]]
+        )
+
+        try:
+            await _bot.send_message(user.telegram_id, text, reply_markup=keyboard)
+        except TelegramForbiddenError:
+            user.is_blocked = True
+        except TelegramBadRequest as exc:
+            logger.warning("unsubscribe_reminder_failed", user_id=user.id, error=str(exc))
+        await session.commit()
+
+
+def schedule_unsubscribe_reminder(scheduler: AsyncIOScheduler, user_id: int, minutes: int) -> None:
+    run_date = datetime.now(timezone.utc) + timedelta(minutes=minutes)
+    scheduler.add_job(
+        send_unsubscribe_reminder_job,
+        "date",
+        run_date=run_date,
+        args=[user_id],
+        id=f"unsub_reminder_{user_id}_{int(run_date.timestamp())}",
+        replace_existing=True,
+    )
+
+
 async def send_scheduled_mailing_job(mailing_id: int) -> None:
     if _bot is None:
         return
